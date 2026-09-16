@@ -335,6 +335,84 @@
   box-shadow: var(--shadow-pink);
 }
 
+/* Elemento decorativo no canto inferior esquerdo */
+.home-deco {
+  position: fixed;
+  left: -46px;
+  bottom: -54px;
+  width: 270px;
+  height: 270px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.home-deco .deco-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(8px);
+  opacity: 0.5;
+}
+
+.home-deco .deco-blob-1 {
+  width: 150px;
+  height: 150px;
+  left: 40px;
+  bottom: 30px;
+  background: radial-gradient(circle, var(--pink-soft), transparent 70%);
+  animation: homeDecoFloat 7s ease-in-out infinite;
+}
+
+.home-deco .deco-blob-2 {
+  width: 110px;
+  height: 110px;
+  left: 130px;
+  bottom: 55px;
+  background: radial-gradient(circle, var(--accent-soft), transparent 70%);
+  animation: homeDecoFloat 8s ease-in-out infinite reverse;
+}
+
+.home-deco .deco-chip {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--surface-glass-strong);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: homeDecoFloat 6s ease-in-out infinite;
+}
+
+.home-deco .deco-chip-2 {
+  width: 34px;
+  height: 34px;
+  left: 210px;
+  bottom: 12px;
+  color: #ec4899;
+  animation-delay: -3s;
+}
+
+@keyframes homeDecoFloat {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(4deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-deco .deco-blob,
+  .home-deco .deco-chip {
+    animation: none;
+  }
+}
+
 @media (max-width: 860px) {
   .home-content {
     padding: 40px 22px;

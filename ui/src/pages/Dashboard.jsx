@@ -64,13 +64,9 @@ export default function Dashboard() {
   }, [location, loading, navigate]);
 
   const handleCreateBoard = async ({ titulo, cor, importancia }) => {
-    const userId = user?._id || user?.id;
-    if (!userId) return;
-
     try {
       const response = await api.post("/quadro", {
         titulo_quadro: titulo,
-        id_usuario: userId,
         cor,
         importancia,
       });
@@ -162,6 +158,9 @@ export default function Dashboard() {
           <div className="boards-grid">
             {quadros.map((quadro) => {
               const titulo = quadro.titulo_quadro || quadro.titulo;
+              const usuarioId = String(user?._id || user?.id || "");
+              const ehDono =
+                String(quadro.id_usuario?._id || quadro.id_usuario || "") === usuarioId;
               return (
                 <div
                   key={quadro._id}
@@ -171,13 +170,15 @@ export default function Dashboard() {
                 >
                   <div className="board-card-header">
                     <h3>{titulo}</h3>
-                    <button
-                      className="btn-delete-board"
-                      title="Excluir quadro"
-                      onClick={(e) => openDeleteModal(e, quadro)}
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {ehDono && (
+                      <button
+                        className="btn-delete-board"
+                        title="Excluir quadro"
+                        onClick={(e) => openDeleteModal(e, quadro)}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
 
                   <div className="board-card-footer">

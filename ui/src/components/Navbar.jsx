@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Kanban, Layout, BarChart2, Settings, LogOut } from "lucide-react";
+import { Kanban, Layout, Share2, BarChart2, Settings, LogOut } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import "./Navbar.css";
 
@@ -24,6 +24,9 @@ export default function Navbar({ user }) {
         <nav className="navbar-links">
           <Link to="/dashboard" className="nav-item">
             <Layout size={18} /> Quadros
+          </Link>
+          <Link to="/compartilhados" className="nav-item">
+            <Share2 size={18} /> Compartilhados
           </Link>
           <Link to="/reports" className="nav-item">
             <BarChart2 size={18} /> Relatórios

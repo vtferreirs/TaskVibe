@@ -1,4 +1,5 @@
 import { Router } from "express";
+import auth from "../middleware/auth.js";
 import { 
     getCard, 
     postCard, 
@@ -7,6 +8,8 @@ import {
 } from "../controllers/cardController.js";
 
 const router = Router();
+
+router.use(auth);
 
 router.get("/", getCard);
 router.post("/", postCard);

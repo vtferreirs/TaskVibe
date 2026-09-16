@@ -1,4 +1,5 @@
 import { Router } from "express";
+import auth from "../middleware/auth.js";
 import {
   getColuna,
   postColuna,
@@ -7,6 +8,8 @@ import {
 } from "../controllers/colunaController.js";
 
 const router = Router();
+
+router.use(auth);
 
 router.get("/", getColuna);
 router.post("/", postColuna);

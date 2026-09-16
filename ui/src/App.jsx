@@ -6,6 +6,7 @@ import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
 import Boardview from "./pages/Boardview";
 import Home from "./pages/Home";
+import Compartilhados from "./pages/Compartilhados";
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/home" element={<Home />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/compartilhados" element={<Compartilhados />} />
         <Route path="/quadro/:id" element={<Boardview />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/reports" element={<Reports />} />

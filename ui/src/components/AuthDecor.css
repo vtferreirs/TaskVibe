@@ -1,0 +1,93 @@
+/* Elementos decorativos nos cantos inferiores (login / registro) */
+.auth-decor {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.deco-corner {
+  position: absolute;
+  width: 240px;
+  height: 240px;
+}
+
+.deco-corner.left {
+  left: -50px;
+  bottom: -60px;
+}
+
+.deco-corner.right {
+  right: -50px;
+  bottom: -60px;
+}
+
+.deco-corner .deco-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(8px);
+  opacity: 0.55;
+}
+
+.deco-corner.left .deco-blob {
+  width: 160px;
+  height: 160px;
+  left: 42px;
+  bottom: 32px;
+  background: radial-gradient(circle, var(--pink-soft), transparent 70%);
+  animation: authDecoFloat 7s ease-in-out infinite;
+}
+
+.deco-corner.right .deco-blob {
+  width: 160px;
+  height: 160px;
+  right: 42px;
+  bottom: 32px;
+  background: radial-gradient(circle, var(--accent-soft), transparent 70%);
+  animation: authDecoFloat 8s ease-in-out infinite reverse;
+}
+
+.deco-corner .deco-chip {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--surface-glass-strong);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.deco-corner.left .deco-chip {
+  left: 118px;
+  bottom: 76px;
+  animation: authDecoFloat 6s ease-in-out infinite;
+}
+
+.deco-corner.right .deco-chip {
+  right: 118px;
+  bottom: 76px;
+  animation: authDecoFloat 6.5s ease-in-out infinite;
+  animation-delay: -2.5s;
+}
+
+@keyframes authDecoFloat {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(4deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deco-corner .deco-blob,
+  .deco-corner .deco-chip {
+    animation: none;
+  }
+}

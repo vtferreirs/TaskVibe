@@ -40,6 +40,96 @@
   background: var(--accent-soft);
 }
 
+.btnShare {
+  background: var(--gradient-btn);
+  border: none;
+  padding: 9px 18px;
+  border-radius: var(--radius-sm);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
+}
+
+.btnShare:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.readOnlyBanner {
+  align-self: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.78rem;
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.semAcesso {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--text-secondary);
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.semAcesso h3 {
+  color: var(--text-primary);
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.semAcesso p {
+  margin: 0;
+  max-width: 420px;
+  line-height: 1.5;
+}
+
+.btnVoltar {
+  background: var(--gradient-btn);
+  border: none;
+  padding: 10px 22px;
+  border-radius: var(--radius-sm);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.btnVoltar:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.boardInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
 .boardInfo h2 {
   font-size: 1.3rem;
   color: var(--text-primary);

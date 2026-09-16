@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { Kanban } from "lucide-react";
 import ThemeToggle from "../components/ThemeToggle";
+import AuthDecor from "../components/AuthDecor";
 import "./Auth.css";
 
 export default function Login() {
@@ -32,22 +33,23 @@ export default function Login() {
     try {
       setLoading(true);
 
-      const response = await api.get("/usuario");
-      const usuarios = response.data;
+      const response = await api.post("/usuario/login", {
+        email: formData.email,
+        senha: formData.senha,
+      });
 
-      const usuarioEncontrado = usuarios.find(
-        (u) => u.email === formData.email && u.senha === formData.senha
-      );
+      const { token, ...usuario } = response.data;
 
-      if (!usuarioEncontrado) {
+      if (!token) {
         setErro("E-mail ou senha incorretos.");
         return;
       }
 
-      localStorage.setItem("user", JSON.stringify(usuarioEncontrado));
+      localStorage.setItem("user", JSON.stringify(usuario));
+      localStorage.setItem("token", token);
       navigate("/home");
-    } catch (user) {
-      setErro("Erro ao realizar login. Verifique sua conexão.");
+    } catch (err) {
+      setErro(err.response?.data?.message || "Erro ao realizar login. Verifique sua conexão.");
     } finally {
       setLoading(false);
     }
@@ -56,6 +58,7 @@ export default function Login() {
   return (
     <div className="auth-container">
       <div className="aurora-bg" />
+      <AuthDecor />
       <ThemeToggle floating />
       <div className="brand-logo">
         <div className="brand-icon">

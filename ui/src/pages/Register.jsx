@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Kanban } from "lucide-react";
 import api from "../services/api";
 import ThemeToggle from "../components/ThemeToggle";
+import AuthDecor from "../components/AuthDecor";
 import "./Auth.css";
 
 export default function Register() {
@@ -46,8 +47,10 @@ export default function Register() {
         senha: formData.senha,
       });
 
-      // 2. Salva o usuário na sessão (localStorage)
-      localStorage.setItem("user", JSON.stringify(response.data));
+      // 2. Salva o usuário + token na sessão (localStorage)
+      const { token, ...usuario } = response.data;
+      localStorage.setItem("user", JSON.stringify(usuario));
+      localStorage.setItem("token", token);
 
       // 3. Redireciona para o Dashboard
       navigate("/home");
@@ -62,6 +65,7 @@ export default function Register() {
   return (
     <div className="auth-container">
       <div className="aurora-bg" />
+      <AuthDecor />
       <ThemeToggle floating />
       <div className="brand-logo">
         <div className="brand-icon">

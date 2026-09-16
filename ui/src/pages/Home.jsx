@@ -9,6 +9,7 @@ import {
   PenLine,
   ClipboardList,
   Circle,
+  Kanban,
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import api from "../services/api";
@@ -30,7 +31,7 @@ export default function Home() {
     try {
       const userData = JSON.parse(me);
       setUser(userData);
-      checkUserBoards(userData._id);
+      checkUserBoards(userData._id || userData.id);
     } catch (error) {
       localStorage.removeItem("user");
       navigate("/login");
@@ -40,9 +41,11 @@ export default function Home() {
   const checkUserBoards = async (usuarioId) => {
     try {
       const response = await api.get(`/quadro?usuarioId=${usuarioId}`);
-      const meusQuadros = Array.isArray(response.data)
-        ? response.data.filter((q) => q.usuarioId === usuarioId || q.usuario === usuarioId)
-        : [];
+      const quadros = Array.isArray(response.data) ? response.data : [];
+      const meusQuadros = quadros.filter((q) => {
+        const donoId = q.id_usuario?._id || q.id_usuario || q.usuarioId || q.usuario;
+        return String(donoId) === String(usuarioId);
+      });
       setHasBoards(meusQuadros.length > 0);
     } catch (err) {
       console.error("Erro ao verificar quadros:", err);
@@ -58,6 +61,16 @@ export default function Home() {
   return (
     <div className="home-container">
       <div className="aurora-bg" />
+      <div className="home-deco" aria-hidden="true">
+        <span className="deco-blob deco-blob-1" />
+        <span className="deco-blob deco-blob-2" />
+        <span className="deco-chip">
+          <Kanban size={16} />
+        </span>
+        <span className="deco-chip deco-chip-2">
+          <Check size={12} />
+        </span>
+      </div>
       <Navbar user={user} />
 
       <main className="home-content">
@@ -138,11 +151,15 @@ export default function Home() {
                   <div className="first-step-icon">
                     <LayoutDashboard size={24} />
                   </div>
-                  <h3>Seus quadros estão te esperando!</h3>
-                  <p>Você já tem quadros criados. Continue acompanhando o andamento dos seus projetos.</p>
+                  <h3>Você já tem quadros!</h3>
+                  <p>
+                    Seus quadros estão prontos para uso. Acesse o painel para
+                    acompanhar o andamento dos seus projetos e continuar anotando
+                    suas tarefas.
+                  </p>
 
                   <button onClick={() => navigate("/dashboard")} className="btn-create-first">
-                    <LayoutDashboard size={20} /> Ir para meus Quadros <ArrowRight size={18} />
+                    <LayoutDashboard size={20} /> Ir para meus quadros <ArrowRight size={18} />
                   </button>
                 </div>
               )}

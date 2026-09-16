@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Calendar, Edit2, Palette, Image as ImageIcon, Check, X, Type } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Calendar, Edit2, Palette, Image as ImageIcon, Check, X, Type, Users, Eye } from "lucide-react";
 import api from "../services/api";
 import Navbar from "../components/Navbar";
 import ColorPickerMenu from "../components/ColorPickerMenu";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
+import ShareBoardModal from "../components/ShareBoardModal";
 import { colorFallback } from "../components/colorPalette";
 import styles from "./Boardview.module.css";
 
@@ -26,6 +27,9 @@ export default function BoardView() {
 
   const [colunaEditando, setColunaEditando] = useState(null);
   const [colunaParaExcluir, setColunaParaExcluir] = useState(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [permissao, setPermissao] = useState(null);
+  const [semAcesso, setSemAcesso] = useState(false);
 
   // Estado para edição individual de cards
   const [editingCardId, setEditingCardId] = useState(null);
@@ -41,11 +45,11 @@ export default function BoardView() {
 
   const columnStatus = (coluna) => coluna.key || String(coluna._id);
 
-  const fetchColunas = useCallback(async (quadroId) => {
+  const fetchColunas = useCallback(async (quadroId, podeCriar) => {
     const res = await api.get(`/coluna?id_quadro=${quadroId}`);
     let colunasCarregadas = Array.isArray(res.data) ? res.data : [];
 
-    if (colunasCarregadas.length === 0) {
+    if (podeCriar && colunasCarregadas.length === 0) {
       const criadas = await Promise.all(
         DEFAULT_COLUNAS.map((d, i) =>
           api.post("/coluna", { ...d, ordem: i, id_quadro: quadroId })
@@ -57,24 +61,40 @@ export default function BoardView() {
     setColunas(colunasCarregadas);
   }, []);
 
-  const fetchDados = useCallback(async () => {
+  const fetchDados = useCallback(async (usuario) => {
     try {
+      const usuarioId = String(usuario?._id || usuario?.id || "");
       const [quadroRes, cardsRes] = await Promise.all([
         api.get(`/quadro?id=${id}`),
         api.get(`/card?id_quadro=${id}`),
       ]);
 
-      if (Array.isArray(quadroRes.data)) {
-        const qEncontrado = quadroRes.data.find((item) => item._id === id);
-        setQuadro(qEncontrado || null);
-      } else {
-        setQuadro(quadroRes.data);
+      const q = Array.isArray(quadroRes.data)
+        ? quadroRes.data.find((item) => item._id === id) || null
+        : quadroRes.data;
+
+      let novaPermissao = null;
+      if (q) {
+        const donoId = String(q.id_usuario?._id || q.id_usuario || "");
+        if (usuarioId && donoId === usuarioId) {
+          novaPermissao = "dono";
+        } else {
+          const membro = (q.membros || []).find(
+            (m) => String(m.id_usuario?._id || m.id_usuario) === usuarioId
+          );
+          novaPermissao = membro?.permissao || null;
+        }
       }
 
+      setPermissao(novaPermissao);
+      setQuadro(q);
+      setSemAcesso(!q);
+
       setCards(Array.isArray(cardsRes.data) ? cardsRes.data : []);
-      await fetchColunas(id);
+      await fetchColunas(id, novaPermissao === "dono" || novaPermissao === "editar");
     } catch (err) {
       console.error("Erro ao carregar dados:", err);
+      setSemAcesso(true);
     } finally {
       setLoading(false);
     }
@@ -86,8 +106,9 @@ export default function BoardView() {
       navigate("/login");
       return;
     }
-    setUser(JSON.parse(me));
-    fetchDados();
+    const userData = JSON.parse(me);
+    setUser(userData);
+    fetchDados(userData);
   }, [navigate, fetchDados]);
 
   // Ações da Coluna
@@ -276,7 +297,31 @@ export default function BoardView() {
     return styles.priorityBaixa;
   };
 
+  const podeEditar = permissao === "dono" || permissao === "editar";
+  const ehDono = permissao === "dono";
+
   if (loading) return <div className={styles.loadingScreen}>Carregando...</div>;
+
+  if (semAcesso) {
+    return (
+      <div className={styles.container}>
+        <div className="aurora-bg" />
+        <Navbar user={user} />
+
+        <main className={styles.semAcesso}>
+          <Eye size={40} color="var(--accent)" />
+          <h3>Sem acesso a este quadro</h3>
+          <p>
+            Este quadro não existe ou você ainda não foi convidado para ele.
+            Peça ao dono para compartilhá-lo com o seu e-mail cadastrado.
+          </p>
+          <button className={styles.btnVoltar} onClick={() => navigate("/dashboard")}>
+            <ArrowLeft size={16} /> Voltar aos quadros
+          </button>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
@@ -290,7 +335,18 @@ export default function BoardView() {
 
         <div className={styles.boardInfo}>
           <h2>{quadro?.titulo_quadro || quadro?.titulo || "Quadro de Tarefas"}</h2>
+          {permissao && permissao !== "dono" && (
+            <div className={styles.readOnlyBanner}>
+              {permissao === "visualizar" ? "Somente leitura" : "Edição liberada"}
+            </div>
+          )}
         </div>
+
+        {ehDono && (
+          <button className={styles.btnShare} onClick={() => setShareOpen(true)}>
+            <Users size={16} /> Compartilhar
+          </button>
+        )}
       </header>
 
       <main className={styles.columns} ref={columnsRef}>
@@ -306,7 +362,7 @@ export default function BoardView() {
           return (
             <div key={coluna._id} className={styles.column} style={colStyle}>
               <div className={styles.columnHeader}>
-                {colunaEditando === coluna._id ? (
+                {podeEditar && colunaEditando === coluna._id ? (
                   <input
                     type="text"
                     className={styles.columnTitleInput}
@@ -317,40 +373,42 @@ export default function BoardView() {
                   />
                 ) : (
                   <>
-                    <div className={styles.columnTitle} onClick={() => setColunaEditando(coluna._id)}>
+                    <div className={styles.columnTitle} onClick={podeEditar ? () => setColunaEditando(coluna._id) : undefined}>
                       <h3>{coluna.titulo}</h3>
-                      <Edit2 size={12} color="#64748b" />
+                      {podeEditar && <Edit2 size={12} color="#64748b" />}
                     </div>
 
-                    <div className={styles.columnActions}>
-                      <label className={styles.btnColorPicker} title="Cor da coluna">
-                        <Palette size={16} color="#64748b" />
-                        <input
-                          type="color"
-                          value={coluna.corFundo || "#f1f5f9"}
-                          onChange={(e) => handleColumnColorChange(coluna._id, e.target.value)}
-                        />
-                      </label>
+                    {podeEditar && (
+                      <div className={styles.columnActions}>
+                        <label className={styles.btnColorPicker} title="Cor da coluna">
+                          <Palette size={16} color="#64748b" />
+                          <input
+                            type="color"
+                            value={coluna.corFundo || "#f1f5f9"}
+                            onChange={(e) => handleColumnColorChange(coluna._id, e.target.value)}
+                          />
+                        </label>
 
-                      <label className={styles.btnBgUpload} title="Imagem de fundo">
-                        <ImageIcon size={16} />
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleColumnImageUpload(coluna._id, e)}
-                        />
-                      </label>
+                        <label className={styles.btnBgUpload} title="Imagem de fundo">
+                          <ImageIcon size={16} />
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleColumnImageUpload(coluna._id, e)}
+                          />
+                        </label>
 
-                      <button
-                        className={styles.btnDeleteColumn}
-                        title="Excluir coluna"
-                        onClick={() => setColunaParaExcluir(coluna)}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                        <button
+                          className={styles.btnDeleteColumn}
+                          title="Excluir coluna"
+                          onClick={() => setColunaParaExcluir(coluna)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
 
-                      <span className={styles.cardCount}>{cardsDaColuna.length}</span>
-                    </div>
+                    <span className={styles.cardCount}>{cardsDaColuna.length}</span>
                   </>
                 )}
               </div>
@@ -407,42 +465,40 @@ export default function BoardView() {
                         <>
                           <div className={styles.taskCardHeader}>
                             <h4>{card.titulo}</h4>
-                            <div className={styles.taskCardHeaderActions}>
-                              {/* Seletor de cor do Card */}
-                              <ColorPickerMenu
-                                value={card.cor || "#ffffff"}
-                                onChange={(v) => handleCardColorChange(card._id, v)}
-                                title="Mudar cor do card"
-                              />
-
-                              {/* Seletor de cor do Texto */}
-                              <label className={styles.cardTextColorPicker} title="Mudar cor do texto">
-                                <Type size={13} color="#94a3b8" />
-                                <input
-                                  type="color"
-                                  value={card.cor_texto || "#1e293b"}
-                                  onChange={(e) => handleCardTextColorChange(card._id, e.target.value)}
+                            {podeEditar && (
+                              <div className={styles.taskCardHeaderActions}>
+                                <ColorPickerMenu
+                                  value={card.cor || "#ffffff"}
+                                  onChange={(v) => handleCardColorChange(card._id, v)}
+                                  title="Mudar cor do card"
                                 />
-                              </label>
 
-                              {/* Botão de Editar Título/Descrição */}
-                              <button
-                                className={styles.btnEditCard}
-                                onClick={() => startEditingCard(card)}
-                                title="Editar tarefa"
-                              >
-                                <Edit2 size={13} />
-                              </button>
+                                <label className={styles.cardTextColorPicker} title="Mudar cor do texto">
+                                  <Type size={13} color="#94a3b8" />
+                                  <input
+                                    type="color"
+                                    value={card.cor_texto || "#1e293b"}
+                                    onChange={(e) => handleCardTextColorChange(card._id, e.target.value)}
+                                  />
+                                </label>
 
-                              {/* Botão de Excluir */}
-                              <button
-                                className={styles.btnDeleteCard}
-                                onClick={() => handleDeleteCard(card._id)}
-                                title="Excluir tarefa"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
+                                <button
+                                  className={styles.btnEditCard}
+                                  onClick={() => startEditingCard(card)}
+                                  title="Editar tarefa"
+                                >
+                                  <Edit2 size={13} />
+                                </button>
+
+                                <button
+                                  className={styles.btnDeleteCard}
+                                  onClick={() => handleDeleteCard(card._id)}
+                                  title="Excluir tarefa"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            )}
                           </div>
 
                           {card.descricao && <p className={styles.taskDesc}>{card.descricao}</p>}
@@ -503,18 +559,29 @@ export default function BoardView() {
                   </div>
                 </div>
               ) : (
-                <button className={styles.btnAddCard} onClick={() => setColunaAtiva(coluna._id)}>
-                  <Plus size={16} /> Nova Tarefa
-                </button>
+                podeEditar && (
+                  <button className={styles.btnAddCard} onClick={() => setColunaAtiva(coluna._id)}>
+                    <Plus size={16} /> Nova Tarefa
+                  </button>
+                )
               )}
             </div>
           );
         })}
 
-        <button className={styles.addColumn} onClick={handleAddColumn}>
-          <Plus size={18} /> Nova Coluna
-        </button>
+        {podeEditar && (
+          <button className={styles.addColumn} onClick={handleAddColumn}>
+            <Plus size={18} /> Nova Coluna
+          </button>
+        )}
       </main>
+
+      <ShareBoardModal
+        isOpen={shareOpen}
+        quadroId={id}
+        onClose={() => setShareOpen(false)}
+        onUpdateQuadro={(q) => setQuadro(q)}
+      />
 
       <DeleteConfirmModal
         isOpen={Boolean(colunaParaExcluir)}
