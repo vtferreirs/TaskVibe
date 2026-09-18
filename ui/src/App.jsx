@@ -8,15 +8,22 @@ import Boardview from "./pages/Boardview";
 import Home from "./pages/Home";
 import Compartilhados from "./pages/Compartilhados";
 
+// Componente raiz: define TODAS as rotas do app.
+// Cada <Route> mapeia uma URL para a página correspondente.
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Register />} />
+        {/* Páginas públicas (sem autenticação obrigatória no nível da rota) */}
+        <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+
+        {/* Área logada */}
         <Route path="/home" element={<Home />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/compartilhados" element={<Compartilhados />} />
+        {/* /quadro/:id recebe o id do quadro na URL (ex.: /quadro/abc123) */}
         <Route path="/quadro/:id" element={<Boardview />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/reports" element={<Reports />} />

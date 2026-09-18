@@ -1,40 +1,69 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Calendar, Edit2, Palette, Image as ImageIcon, Check, X, Type, Users, Eye } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Calendar, Edit2, Palette, Image as ImageIcon, Users, Eye, X } from "lucide-react";
 import api from "../services/api";
 import Navbar from "../components/Navbar";
-import ColorPickerMenu from "../components/ColorPickerMenu";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import ShareBoardModal from "../components/ShareBoardModal";
+import CardModal from "../components/CardModal";
+import CardStatusBadge from "../components/CardStatusBadge";
 import { colorFallback } from "../components/colorPalette";
+import {
+  isVencido,
+  formatarDataHora,
+  HORA_PADRAO,
+  hojeISO,
+  normalizarNivel,
+  alertasAtivos,
+  nivelIntenso,
+  faixaPrazo,
+} from "../components/cardStatus";
 import styles from "./Boardview.module.css";
 
+// Página principal do quadro Kanban: mostra as colunas com suas tarefas,
+// respeitando a permissão do usuário (dono / editar / visualizar). Usuários
+// só-leitura não veem nenhum controle de criação/edição/exclusão.
 const DEFAULT_COLUNAS = [
   { titulo: "A Fazer", key: "A Fazer" },
   { titulo: "Em Andamento", key: "Em Andamento" },
   { titulo: "Concluído", key: "Concluído" },
 ];
 
+// Mapa entre a faixa de prazo e a classe CSS da tarja de deadline
+const DEADLINE_CLASSES = {
+  atrasado: "deadlineAtrasado",
+  hoje: "deadlineHoje",
+  "3dias": "deadline3dias",
+  "7dias": "deadline7dias",
+};
+
 export default function BoardView() {
   const { id } = useParams();
   const navigate = useNavigate();
   const columnsRef = useRef(null);
-  const [user, setUser] = useState(null);
+  const [user] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user"));
+    } catch {
+      return null;
+    }
+  });
   const [quadro, setQuadro] = useState(null);
   const [cards, setCards] = useState([]);
   const [colunas, setColunas] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [colunaEditando, setColunaEditando] = useState(null);
+  // Estados de edição/visualização da coluna
+  const [colunaExpandida, setColunaExpandida] = useState(null);
   const [colunaParaExcluir, setColunaParaExcluir] = useState(null);
   const [shareOpen, setShareOpen] = useState(false);
+  // Papel do usuário neste quadro: "dono" | "editar" | "visualizar" | null
   const [permissao, setPermissao] = useState(null);
   const [semAcesso, setSemAcesso] = useState(false);
 
-  // Estado para edição individual de cards
-  const [editingCardId, setEditingCardId] = useState(null);
-  const [editTitulo, setEditTitulo] = useState("");
-  const [editDescricao, setEditDescricao] = useState("");
+  // Visão expandida do card
+  const [cardSelecionadoId, setCardSelecionadoId] = useState(null);
+  const [cardParaExcluir, setCardParaExcluir] = useState(null);
 
   // Form de criação de card
   const [colunaAtiva, setColunaAtiva] = useState(null);
@@ -42,9 +71,14 @@ export default function BoardView() {
   const [descricao, setDescricao] = useState("");
   const [prioridade, setPrioridade] = useState("Baixa");
   const [dataEntrega, setDataEntrega] = useState("");
+  const [horaEntrega, setHoraEntrega] = useState(HORA_PADRAO);
+  const [formErro, setFormErro] = useState("");
 
+  // O status do card referencia a coluna pelo key (colunas padrão) ou pelo _id
   const columnStatus = (coluna) => coluna.key || String(coluna._id);
 
+  // Carrega colunas do quadro; se o usuário pode editar e não há colunas,
+  // cria automaticamente as três colunas padrão (fluxo de primeiro acesso)
   const fetchColunas = useCallback(async (quadroId, podeCriar) => {
     const res = await api.get(`/coluna?id_quadro=${quadroId}`);
     let colunasCarregadas = Array.isArray(res.data) ? res.data : [];
@@ -61,6 +95,7 @@ export default function BoardView() {
     setColunas(colunasCarregadas);
   }, []);
 
+  // Carrega quadro + cards em paralelo e deduz a permissão do usuário
   const fetchDados = useCallback(async (usuario) => {
     try {
       const usuarioId = String(usuario?._id || usuario?.id || "");
@@ -73,6 +108,7 @@ export default function BoardView() {
         ? quadroRes.data.find((item) => item._id === id) || null
         : quadroRes.data;
 
+      // Define a permissão: dono se for o criador; senão busca na lista de membros
       let novaPermissao = null;
       if (q) {
         const donoId = String(q.id_usuario?._id || q.id_usuario || "");
@@ -91,6 +127,7 @@ export default function BoardView() {
       setSemAcesso(!q);
 
       setCards(Array.isArray(cardsRes.data) ? cardsRes.data : []);
+      // Só permite auto-criar colunas quando o usuário tem poder de escrita
       await fetchColunas(id, novaPermissao === "dono" || novaPermissao === "editar");
     } catch (err) {
       console.error("Erro ao carregar dados:", err);
@@ -101,17 +138,27 @@ export default function BoardView() {
   }, [id, fetchColunas]);
 
   useEffect(() => {
+    // Sem sessão salva, redireciona para o login
     const me = localStorage.getItem("user");
     if (!me) {
       navigate("/login");
       return;
     }
-    const userData = JSON.parse(me);
-    setUser(userData);
-    fetchDados(userData);
+    let userData;
+    try {
+      userData = JSON.parse(me);
+    } catch {
+      localStorage.removeItem("user");
+      navigate("/login");
+      return;
+    }
+    Promise.resolve()
+      .then(() => fetchDados(userData))
+      .catch(() => {});
   }, [navigate, fetchDados]);
 
   // Ações da Coluna
+  // Renomeação otimista local; o commit só é enviado ao servidor no blur/Enter
   const handleRenameColumn = (colId, novoTitulo) => {
     setColunas((prev) =>
       prev.map((c) => (c._id === colId ? { ...c, titulo: novoTitulo } : c))
@@ -119,21 +166,20 @@ export default function BoardView() {
   };
 
   const handleRenameColumnCommit = async (colId) => {
-    const coluna = colunas.find((c) => c.id === colId);
+    const coluna = colunas.find((c) => c._id === colId);
     if (!coluna) return;
     const novoTitulo = coluna.titulo.trim() || "Sem título";
+    setColunas((prev) =>
+      prev.map((c) => (c._id === colId ? { ...c, titulo: novoTitulo } : c))
+    );
     try {
-      setColunas((prev) =>
-        prev.map((c) => (c._id === colId ? { ...c, titulo: novoTitulo } : c))
-      );
       await api.put(`/coluna/${colId}`, { titulo: novoTitulo });
     } catch (err) {
       console.error("Erro ao renomear coluna:", err);
-    } finally {
-      setColunaEditando(null);
     }
   };
 
+  // Cor de fundo ou imagem são mutuamente exclusivos (um zera o outro)
   const handleColumnColorChange = async (colId, cor) => {
     setColunas((prev) =>
       prev.map((c) => (c._id === colId ? { ...c, corFundo: cor, imagemFundo: null } : c))
@@ -149,6 +195,7 @@ export default function BoardView() {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Converte o arquivo para base64 antes de enviar
     const reader = new FileReader();
     reader.onloadend = async () => {
       const imagem = reader.result;
@@ -164,6 +211,7 @@ export default function BoardView() {
     reader.readAsDataURL(file);
   };
 
+  // Nova coluna já abre em modo de edição e rola o container até o fim
   const handleAddColumn = async () => {
     try {
       const response = await api.post("/coluna", {
@@ -173,7 +221,7 @@ export default function BoardView() {
       });
 
       setColunas((prev) => [...prev, response.data]);
-      setColunaEditando(response.data._id);
+      setColunaExpandida(response.data._id);
       setColunaAtiva(null);
       setTimeout(() => {
         columnsRef.current?.scrollTo({
@@ -195,8 +243,9 @@ export default function BoardView() {
       const idExcluido = colunaParaExcluir._id;
       setColunas((prev) => prev.filter((c) => c._id !== idExcluido));
       setColunaParaExcluir(null);
+      // Limpa estados que apontavam para a coluna removida
       if (colunaAtiva === idExcluido) setColunaAtiva(null);
-      if (colunaEditando === idExcluido) setColunaEditando(null);
+      if (colunaExpandida === idExcluido) setColunaExpandida(null);
     } catch (err) {
       console.error("Erro ao excluir coluna:", err);
       alert("Não foi possível excluir a coluna.");
@@ -205,8 +254,13 @@ export default function BoardView() {
 
   // Ações do Card
   const handleCreateCard = async (statusColuna) => {
-    if (!titulo.trim() || !dataEntrega) {
-      alert("Preencha o título e a data.");
+    if (!titulo.trim() || !descricao.trim() || !dataEntrega || !prioridade) {
+      setFormErro("Preencha todas as informações.");
+      return;
+    }
+
+    if (dataEntrega < hojeISO()) {
+      setFormErro("A data de entrega não pode ser anterior a hoje.");
       return;
     }
 
@@ -214,7 +268,9 @@ export default function BoardView() {
       const payload = {
         titulo: titulo.trim(),
         descricao: descricao.trim(),
-        data_entrega: new Date(dataEntrega).toISOString(),
+        // Converte "YYYY-MM-DD" do input date para ISO UTC
+        data_entrega: new Date(`${dataEntrega}T00:00:00.000Z`).toISOString(),
+        hora_entrega: horaEntrega || HORA_PADRAO,
         status: statusColuna,
         prioridade: prioridade,
         id_quadro: id,
@@ -223,85 +279,144 @@ export default function BoardView() {
 
       const response = await api.post("/card", payload);
 
+      // Adiciona o card retornado e limpa o formulário
       setCards((prev) => [...prev, response.data]);
       setTitulo("");
       setDescricao("");
       setPrioridade("Baixa");
       setDataEntrega("");
+      setHoraEntrega(HORA_PADRAO);
+      setFormErro("");
       setColunaAtiva(null);
-    } catch (err) {
+    } catch {
       alert("Erro ao criar tarefa.");
     }
   };
 
-  const startEditingCard = (card) => {
-    setEditingCardId(card._id);
-    setEditTitulo(card.titulo);
-    setEditDescricao(card.descricao || "");
+  const abrirFormCard = (colunaId) => {
+    setFormErro("");
+    setColunaAtiva(colunaId);
   };
 
-  const handleSaveCardEdit = async (cardId) => {
-    try {
-      const payload = {
-        titulo: editTitulo.trim(),
-        descricao: editDescricao.trim(),
-      };
+  const fecharFormCard = () => {
+    setFormErro("");
+    setColunaAtiva(null);
+  };
 
-      await api.put(`/card/${cardId}`, payload);
+  // Salva edições feitas no CardModal e sincroniza a lista local
+  const handleSaveCardEdit = async (cardId, payload) => {
+    try {
+      const { data } = await api.put(`/card/${cardId}`, payload);
 
       setCards((prev) =>
-        prev.map((c) => (c._id === cardId ? { ...c, ...payload } : c))
+        prev.map((c) => (c._id === cardId ? { ...c, ...data } : c))
       );
-      setEditingCardId(null);
-    } catch (err) {
+    } catch {
       alert("Erro ao atualizar a tarefa.");
     }
   };
 
-  const handleCardColorChange = async (cardId, novaCor) => {
+  // Marca/desmarca concluído, registrando data_conclusao no estado local e
+  // na API; reverte a mudança otimista se a API falhar
+  const handleToggleConcluido = async (cardId, novoValor) => {
+    const anterior = cards.find((c) => c._id === cardId);
+
+    setCards((prev) =>
+      prev.map((c) =>
+        c._id === cardId
+          ? {
+              ...c,
+              concluido: novoValor,
+              data_conclusao: novoValor ? new Date().toISOString() : null,
+            }
+          : c
+      )
+    );
+
     try {
-      await api.put(`/card/${cardId}`, { cor: novaCor });
+      const { data } = await api.put(`/card/${cardId}`, { concluido: novoValor });
 
       setCards((prev) =>
-        prev.map((c) => (c._id === cardId ? { ...c, cor: novaCor } : c))
+        prev.map((c) => (c._id === cardId ? { ...c, ...data } : c))
       );
     } catch (err) {
+      console.error("Erro ao alterar conclusão do card:", err);
+      if (anterior) {
+        setCards((prev) => prev.map((c) => (c._id === cardId ? anterior : c)));
+      }
+    }
+  };
+
+  // Mudanças de cor (fundo/texto) também são otimistas com reversão em erro
+  const handleCardColorChange = async (cardId, novaCor) => {
+    const anterior = cards.find((c) => c._id === cardId)?.cor;
+
+    setCards((prev) =>
+      prev.map((c) => (c._id === cardId ? { ...c, cor: novaCor } : c))
+    );
+
+    try {
+      await api.put(`/card/${cardId}`, { cor: novaCor });
+    } catch (err) {
       console.error("Erro ao alterar cor do card:", err);
+      if (anterior !== undefined) {
+        setCards((prev) =>
+          prev.map((c) => (c._id === cardId ? { ...c, cor: anterior } : c))
+        );
+      }
     }
   };
 
   const handleCardTextColorChange = async (cardId, novaCor) => {
+    const anterior = cards.find((c) => c._id === cardId)?.cor_texto;
+
+    setCards((prev) =>
+      prev.map((c) => (c._id === cardId ? { ...c, cor_texto: novaCor } : c))
+    );
+
     try {
       await api.put(`/card/${cardId}`, { cor_texto: novaCor });
-
-      setCards((prev) =>
-        prev.map((c) => (c._id === cardId ? { ...c, cor_texto: novaCor } : c))
-      );
     } catch (err) {
       console.error("Erro ao alterar cor do texto:", err);
+      if (anterior !== undefined) {
+        setCards((prev) =>
+          prev.map((c) => (c._id === cardId ? { ...c, cor_texto: anterior } : c))
+        );
+      }
     }
   };
 
-  const handleDeleteCard = async (cardId) => {
+  const handleDeleteCard = async () => {
+    if (!cardParaExcluir) return;
+    const cardId = cardParaExcluir._id;
+
     try {
       await api.delete(`/card/${cardId}`);
       setCards((prev) => prev.filter((c) => c._id !== cardId));
-    } catch (err) {
+      if (cardSelecionadoId === cardId) setCardSelecionadoId(null);
+      setCardParaExcluir(null);
+    } catch {
       alert("Erro ao excluir.");
     }
   };
 
+  // Seleciona a classe da faixa lateral de prioridade do card
   const getPriorityBarClass = (prio) => {
     if (prio === "Alta") return styles.priorityAlta;
     if (prio === "Media") return styles.priorityMedia;
     return styles.priorityBaixa;
   };
 
+  // Permissões derivadas usadas por toda a renderização
   const podeEditar = permissao === "dono" || permissao === "editar";
   const ehDono = permissao === "dono";
+  const nivelAlertas = normalizarNivel(user?.nivel_alertas ?? user?.alertas_visuais);
+  const cardSelecionado =
+    cards.find((c) => c._id === cardSelecionadoId) || null;
 
   if (loading) return <div className={styles.loadingScreen}>Carregando...</div>;
 
+  // Tela exibida quando o quadro não existe ou o usuário não foi convidado
   if (semAcesso) {
     return (
       <div className={styles.container}>
@@ -342,6 +457,7 @@ export default function BoardView() {
           )}
         </div>
 
+        {/* Só o dono pode convidar/gerenciar membros */}
         {ehDono && (
           <button className={styles.btnShare} onClick={() => setShareOpen(true)}>
             <Users size={16} /> Compartilhar
@@ -353,6 +469,36 @@ export default function BoardView() {
         {colunas.map((coluna) => {
           const cardsDaColuna = cards.filter((c) => c.status === columnStatus(coluna));
 
+          // Contadores de tarefas atrasadas e vencendo em até 7 dias (alertas do nível)
+          const cardsAtrasados = cardsDaColuna.filter((c) => isVencido(c)).length;
+          const cardsVencendo = cardsDaColuna.filter((c) => {
+            const faixa = faixaPrazo(c);
+            return faixa === "hoje" || faixa === "3dias" || faixa === "7dias";
+          }).length;
+
+          // Badges exibidos no cabeçalho da coluna (ocultos se o nível for "desligado")
+          const marcadoresColuna = alertasAtivos(nivelAlertas) && (
+            <>
+              {cardsAtrasados > 0 && (
+                <span
+                  className={`${styles.alertaColuna} ${styles.alertaColunaAtraso}`}
+                  title={`${cardsAtrasados} tarefa(s) atrasada(s)`}
+                >
+                  {cardsAtrasados}
+                </span>
+              )}
+              {cardsVencendo > 0 && (
+                <span
+                  className={`${styles.alertaColuna} ${styles.alertaColunaVencendo}`}
+                  title={`${cardsVencendo} tarefa(s) vencendo em até 7 dias`}
+                >
+                  {cardsVencendo}
+                </span>
+              )}
+            </>
+          );
+
+          // Fundo da coluna: imagem ou cor (a imagem tem prioridade)
           const colStyle = coluna.imagemFundo
             ? { backgroundImage: `url(${coluna.imagemFundo})` }
             : coluna.corFundo
@@ -362,23 +508,25 @@ export default function BoardView() {
           return (
             <div key={coluna._id} className={styles.column} style={colStyle}>
               <div className={styles.columnHeader}>
-                {podeEditar && colunaEditando === coluna._id ? (
-                  <input
-                    type="text"
-                    className={styles.columnTitleInput}
-                    value={coluna.titulo}
-                    onChange={(e) => handleRenameColumn(coluna._id, e.target.value)}
-                    onBlur={() => handleRenameColumnCommit(coluna._id)}
-                    autoFocus
-                  />
-                ) : (
+                {podeEditar && colunaExpandida === coluna._id ? (
                   <>
-                    <div className={styles.columnTitle} onClick={podeEditar ? () => setColunaEditando(coluna._id) : undefined}>
-                      <h3>{coluna.titulo}</h3>
-                      {podeEditar && <Edit2 size={12} color="#64748b" />}
-                    </div>
+                    <input
+                      type="text"
+                      className={styles.columnTitleInput}
+                      value={coluna.titulo}
+                      onChange={(e) => handleRenameColumn(coluna._id, e.target.value)}
+                      onBlur={() => handleRenameColumnCommit(coluna._id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.blur();
+                        if (e.key === "Escape") {
+                          handleRenameColumnCommit(coluna._id);
+                          setColunaExpandida(null);
+                        }
+                      }}
+                      autoFocus
+                    />
 
-                    {podeEditar && (
+                    <div className={styles.columnHeaderRight}>
                       <div className={styles.columnActions}>
                         <label className={styles.btnColorPicker} title="Cor da coluna">
                           <Palette size={16} color="#64748b" />
@@ -406,112 +554,100 @@ export default function BoardView() {
                           <Trash2 size={14} />
                         </button>
                       </div>
-                    )}
 
-                    <span className={styles.cardCount}>{cardsDaColuna.length}</span>
+                      {marcadoresColuna}
+
+                      <span className={styles.cardCount}>{cardsDaColuna.length}</span>
+
+                      <button
+                        className={styles.btnCollapseColumn}
+                        title="Fechar detalhes"
+                        onClick={() => {
+                          handleRenameColumnCommit(coluna._id);
+                          setColunaExpandida(null);
+                        }}
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Só quem pode editar consegue abrir o modo de edição do título */}
+                    <div
+                      className={styles.columnTitle}
+                      onClick={podeEditar ? () => setColunaExpandida(coluna._id) : undefined}
+                    >
+                      <h3>{coluna.titulo}</h3>
+                      {podeEditar && <Edit2 size={12} color="#64748b" />}
+                    </div>
+
+                    <div className={styles.columnHeaderRight}>
+                      {marcadoresColuna}
+                      <span className={styles.cardCount}>{cardsDaColuna.length}</span>
+                    </div>
                   </>
                 )}
               </div>
 
               <div className={styles.cardsList}>
-                {cardsDaColuna.map((card) => (
-                  <div
-                    key={card._id}
-                    className={styles.taskCard}
-                    style={{ background: card.cor || "#ffffff" }}
-                  >
-                    {/* Faixa de prioridade */}
-                    <div className={`${styles.priorityBar} ${getPriorityBarClass(card.prioridade)}`} />
-
+                {cardsDaColuna.map((card) => {
+                  // Tarjas de alerta: atraso (preta) e proximidade do prazo (colorida)
+                  const vencido = isVencido(card);
+                  const faixa = faixaPrazo(card);
+                  const mostrarTarja = alertasAtivos(nivelAlertas) && faixa;
+                  return (
                     <div
-                      className={styles.taskCardContent}
-                      style={{ color: card.cor_texto || "#1e293b" }}
+                      key={card._id}
+                      className={`${styles.taskCard} ${vencido ? styles.taskCardVencido : ""}`}
+                      style={{ background: card.cor || "#ffffff" }}
+                      onClick={() => setCardSelecionadoId(card._id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setCardSelecionadoId(card._id);
+                        }
+                      }}
                     >
-                      {editingCardId === card._id ? (
-                        /* Formulário de Edição do Card */
-                        <div className={styles.editCardForm}>
-                          <input
-                            type="text"
-                            className={styles.editCardInput}
-                            value={editTitulo}
-                            onChange={(e) => setEditTitulo(e.target.value)}
-                            placeholder="Título"
-                            autoFocus
-                          />
-                          <textarea
-                            className={styles.editCardTextarea}
-                            value={editDescricao}
-                            onChange={(e) => setEditDescricao(e.target.value)}
-                            placeholder="Descrição"
-                            rows={2}
-                          />
-                          <div className={styles.formActions}>
-                            <button
-                              className={styles.btnSaveCard}
-                              onClick={() => handleSaveCardEdit(card._id)}
-                            >
-                              <Check size={14} /> Salvar
-                            </button>
-                            <button
-                              className={styles.btnCancelCard}
-                              onClick={() => setEditingCardId(null)}
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
+                      {/* Faixa de prioridade (preta quando atrasado) */}
+                      <div
+                        className={`${styles.priorityBar} ${
+                          vencido ? styles.priorityVencido : getPriorityBarClass(card.prioridade)
+                        }`}
+                      />
+
+                      {/* Faixa secundária de prazo */}
+                      {mostrarTarja && (
+                        <div
+                          className={`${styles.deadlineBar} ${
+                            styles[DEADLINE_CLASSES[faixa]]
+                          } ${nivelIntenso(nivelAlertas) ? styles.deadlineGlow : ""}`}
+                        />
+                      )}
+
+                      <div
+                        className={styles.taskCardContent}
+                        style={{ color: card.cor_texto || "#1e293b" }}
+                      >
+                        <div className={styles.taskCardHeader}>
+                          <h4>{card.titulo}</h4>
                         </div>
-                      ) : (
-                        /* Modo Visualização do Card */
-                        <>
-                          <div className={styles.taskCardHeader}>
-                            <h4>{card.titulo}</h4>
-                            {podeEditar && (
-                              <div className={styles.taskCardHeaderActions}>
-                                <ColorPickerMenu
-                                  value={card.cor || "#ffffff"}
-                                  onChange={(v) => handleCardColorChange(card._id, v)}
-                                  title="Mudar cor do card"
-                                />
 
-                                <label className={styles.cardTextColorPicker} title="Mudar cor do texto">
-                                  <Type size={13} color="#94a3b8" />
-                                  <input
-                                    type="color"
-                                    value={card.cor_texto || "#1e293b"}
-                                    onChange={(e) => handleCardTextColorChange(card._id, e.target.value)}
-                                  />
-                                </label>
+                        {card.descricao && <p className={styles.taskDesc}>{card.descricao}</p>}
 
-                                <button
-                                  className={styles.btnEditCard}
-                                  onClick={() => startEditingCard(card)}
-                                  title="Editar tarefa"
-                                >
-                                  <Edit2 size={13} />
-                                </button>
-
-                                <button
-                                  className={styles.btnDeleteCard}
-                                  onClick={() => handleDeleteCard(card._id)}
-                                  title="Excluir tarefa"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-
-                          {card.descricao && <p className={styles.taskDesc}>{card.descricao}</p>}
-
+                        <div className={styles.taskCardFooter}>
                           <div className={styles.taskDate}>
                             <Calendar size={12} />
-                            {new Date(card.data_entrega).toLocaleDateString("pt-BR")}
+                            {formatarDataHora(card.data_entrega, card.hora_entrega)}
                           </div>
-                        </>
-                      )}
+                          <CardStatusBadge card={card} nivelAlertas={nivelAlertas} />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {colunaAtiva === coluna._id ? (
@@ -520,14 +656,20 @@ export default function BoardView() {
                     type="text"
                     placeholder="Título da tarefa..."
                     value={titulo}
-                    onChange={(e) => setTitulo(e.target.value)}
+                    onChange={(e) => {
+                      setTitulo(e.target.value);
+                      setFormErro("");
+                    }}
                     autoFocus
                   />
                   <input
                     type="text"
                     placeholder="Descrição..."
                     value={descricao}
-                    onChange={(e) => setDescricao(e.target.value)}
+                    onChange={(e) => {
+                      setDescricao(e.target.value);
+                      setFormErro("");
+                    }}
                   />
 
                   <div className={styles.formRowCompact}>
@@ -535,32 +677,56 @@ export default function BoardView() {
                       <label style={{ fontSize: "0.75rem", color: "#64748b", display: "block" }}>Entrega:</label>
                       <input
                         type="date"
+                        min={hojeISO()}
                         value={dataEntrega}
-                        onChange={(e) => setDataEntrega(e.target.value)}
+                        onChange={(e) => {
+                          setDataEntrega(e.target.value);
+                          setFormErro("");
+                        }}
                       />
                     </div>
                     <div>
-                      <label style={{ fontSize: "0.75rem", color: "#64748b", display: "block" }}>Prioridade:</label>
-                      <select value={prioridade} onChange={(e) => setPrioridade(e.target.value)}>
-                        <option value="Baixa">Baixa (Azul)</option>
-                        <option value="Media">Média (Amarelo)</option>
-                        <option value="Alta">Alta (Vermelho)</option>
-                      </select>
+                      <label style={{ fontSize: "0.75rem", color: "#64748b", display: "block" }}>Hora:</label>
+                      <input
+                        type="time"
+                        value={horaEntrega}
+                        onChange={(e) => {
+                          setHoraEntrega(e.target.value);
+                          setFormErro("");
+                        }}
+                      />
                     </div>
                   </div>
+
+                  <div>
+                    <label style={{ fontSize: "0.75rem", color: "#64748b", display: "block" }}>Prioridade:</label>
+                    <select
+                      value={prioridade}
+                      onChange={(e) => {
+                        setPrioridade(e.target.value);
+                        setFormErro("");
+                      }}
+                    >
+                      <option value="Baixa">Baixa (Azul)</option>
+                      <option value="Media">Média (Amarelo)</option>
+                      <option value="Alta">Alta (Vermelho)</option>
+                    </select>
+                  </div>
+
+                  {formErro && <p className={styles.formError}>{formErro}</p>}
 
                   <div className={styles.formActions}>
                     <button className={styles.btnSaveCard} onClick={() => handleCreateCard(columnStatus(coluna))}>
                       Salvar
                     </button>
-                    <button className={styles.btnCancelCard} onClick={() => setColunaAtiva(null)}>
+                    <button className={styles.btnCancelCard} onClick={fecharFormCard}>
                       Cancelar
                     </button>
                   </div>
                 </div>
               ) : (
                 podeEditar && (
-                  <button className={styles.btnAddCard} onClick={() => setColunaAtiva(coluna._id)}>
+                  <button className={styles.btnAddCard} onClick={() => abrirFormCard(coluna._id)}>
                     <Plus size={16} /> Nova Tarefa
                   </button>
                 )
@@ -569,6 +735,7 @@ export default function BoardView() {
           );
         })}
 
+        {/* "Nova Coluna" e "Nova Tarefa" só aparecem para quem pode editar */}
         {podeEditar && (
           <button className={styles.addColumn} onClick={handleAddColumn}>
             <Plus size={18} /> Nova Coluna
@@ -576,12 +743,29 @@ export default function BoardView() {
         )}
       </main>
 
+      {/* Modais: compartilhamento (dono), edição do card e confirmações de exclusão */}
       <ShareBoardModal
         isOpen={shareOpen}
         quadroId={id}
         onClose={() => setShareOpen(false)}
         onUpdateQuadro={(q) => setQuadro(q)}
       />
+
+      {cardSelecionado && (
+        <CardModal
+          key={cardSelecionado._id}
+          card={cardSelecionado}
+          isOpen={Boolean(cardSelecionado)}
+          podeEditar={podeEditar}
+          nivelAlertas={nivelAlertas}
+          onClose={() => setCardSelecionadoId(null)}
+          onSave={handleSaveCardEdit}
+          onColorChange={handleCardColorChange}
+          onTextColorChange={handleCardTextColorChange}
+          onRequestDelete={(c) => setCardParaExcluir(c)}
+          onToggleConcluido={handleToggleConcluido}
+        />
+      )}
 
       <DeleteConfirmModal
         isOpen={Boolean(colunaParaExcluir)}
@@ -592,6 +776,17 @@ export default function BoardView() {
         message="Tem certeza que deseja excluir a coluna"
         confirmLabel="Sim, excluir"
         warning="Os cards dessa coluna deixarão de aparecer, mas permanecerão salvos."
+      />
+
+      <DeleteConfirmModal
+        isOpen={Boolean(cardParaExcluir)}
+        onClose={() => setCardParaExcluir(null)}
+        onConfirm={handleDeleteCard}
+        title="Excluir Tarefa"
+        subjectName={cardParaExcluir?.titulo || ""}
+        message="Tem certeza que deseja excluir a tarefa"
+        confirmLabel="Sim, excluir"
+        warning="Esta ação é permanente e não pode ser desfeita."
       />
     </div>
   );

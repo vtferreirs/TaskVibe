@@ -3,11 +3,16 @@ import { X, Sparkles, Layout } from "lucide-react";
 import { COLOR_PALETTE } from "./colorPalette";
 import "./CreateBoardModal.css";
 
+// Modal de criação de um novo quadro (board).
+// Guarda nome, cor e importância em estado local e só chama onCreate
+// (gerido pela página) no submit.
 export default function CreateBoardModal({ isOpen, onClose, onCreate }) {
+  // Estado do formulário, independente do resto da aplicação
   const [titulo, setTitulo] = useState("");
   const [cor, setCor] = useState("#FFFFFF");
   const [importancia, setImportancia] = useState("Baixa");
 
+  // Fechado = não renderiza nada
   if (!isOpen) return null;
 
   const handlePick = (value) => {
@@ -16,6 +21,7 @@ export default function CreateBoardModal({ isOpen, onClose, onCreate }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    // Bloqueia criação sem título
     if (!titulo.trim()) return;
 
     onCreate({
@@ -24,6 +30,7 @@ export default function CreateBoardModal({ isOpen, onClose, onCreate }) {
       importancia,
     });
 
+    // Limpa o formulário para o próximo uso
     setTitulo("");
     setCor("#FFFFFF");
     setImportancia("Baixa");
@@ -57,6 +64,7 @@ export default function CreateBoardModal({ isOpen, onClose, onCreate }) {
 
           <div className="form-group">
             <label>Cor de Fundo</label>
+            {/* Swatches de cor vindos da paleta central (colorPalette.js) */}
             <div className="color-options">
               {COLOR_PALETTE.map((c) => (
                 <button
@@ -110,6 +118,7 @@ export default function CreateBoardModal({ isOpen, onClose, onCreate }) {
             <button type="button" className="btn-cancel" onClick={onClose}>
               Cancelar
             </button>
+            {/* Botão principal desabilitado enquanto não há título */}
             <button type="submit" className="btn-submit" disabled={!titulo.trim()}>
               Criar Quadro
             </button>

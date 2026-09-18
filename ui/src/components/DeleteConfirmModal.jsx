@@ -1,12 +1,15 @@
 import { AlertTriangle, X } from "lucide-react";
 import "./CreateBoardModal.css";
 
+// Modal genérico de confirmação de exclusão.
+// Reutilizado para cards, colunas, quadros etc.; o texto é parametrizado
+// por props (title, subjectName, message, confirmLabel, warning).
 export default function DeleteConfirmModal({
   isOpen,
   onClose,
   onConfirm,
   title = "Excluir",
-  subjectName = "",
+  subjectName = "", // Nome do item a excluir (aparece em destaque na mensagem)
   message = "Tem certeza que deseja excluir",
   confirmLabel = "Excluir",
   warning = "Esta ação é permanente e removerá todas as tarefas vinculadas.",
@@ -35,6 +38,7 @@ export default function DeleteConfirmModal({
               </strong>
             )}
           </p>
+          {/* Aviso em destaque sobre a irreversibilidade da ação */}
           <span style={{ color: "var(--danger)", fontSize: "0.82rem", fontWeight: 600 }}>
             {warning}
           </span>
@@ -43,6 +47,7 @@ export default function DeleteConfirmModal({
             <button type="button" className="btn-cancel" onClick={onClose}>
               Cancelar
             </button>
+            {/* Botão de confirmação com cor de perigo para reforçar a ação destrutiva */}
             <button
               type="button"
               className="btn-submit"

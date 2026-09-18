@@ -1,0 +1,219 @@
+.card-modal {
+  max-width: 540px;
+}
+
+.card-modal-header {
+  align-items: flex-start;
+}
+
+.card-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.card-modal-title h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  word-break: break-word;
+}
+
+.card-modal-title-done {
+  text-decoration: line-through;
+  opacity: 0.65;
+}
+
+.card-modal-title-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--accent-2);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 700;
+  outline: none;
+}
+
+.conclude-circle {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  background: transparent;
+  color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.18s ease;
+}
+
+.conclude-circle:hover {
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.conclude-circle--done {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #ffffff;
+}
+
+.conclude-circle--static {
+  cursor: default;
+}
+
+.card-modal-body {
+  gap: 16px;
+}
+
+.card-modal-desc {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.card-modal-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--accent-2);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  resize: vertical;
+  outline: none;
+}
+
+.card-modal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+}
+
+.card-modal-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.card-modal-meta-item svg {
+  color: var(--text-muted);
+}
+
+.card-modal-date,
+.card-modal-select {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-family: var(--font-body);
+  outline: none;
+}
+
+.card-modal-date:focus,
+.card-modal-select:focus {
+  border-color: var(--accent-2);
+}
+
+.card-modal-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.card-modal-color-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--accent-soft);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.card-modal-color-field svg {
+  color: var(--text-muted);
+}
+
+.card-modal-color-field--text input[type="color"] {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid var(--border);
+  border-radius: 9px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.card-modal-footer {
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 24px 20px;
+}
+
+.card-modal-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.card-modal-delete {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--error-border);
+  color: var(--danger);
+  padding: 9px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.card-modal-delete:hover {
+  background: var(--error-bg);
+}
+
+.card-modal-footer .btn-submit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-modal-error {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+  font-size: 0.82rem;
+  font-weight: 600;
+}

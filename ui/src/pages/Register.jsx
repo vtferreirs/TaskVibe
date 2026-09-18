@@ -6,6 +6,8 @@ import ThemeToggle from "../components/ThemeToggle";
 import AuthDecor from "../components/AuthDecor";
 import "./Auth.css";
 
+// Página de registro. Cria a conta via POST /usuario e, como o back-end
+// já devolve token, já deixa o usuário logado (login automático).
 export default function Register() {
   const navigate = useNavigate();
   
@@ -13,7 +15,7 @@ export default function Register() {
     nome: "",
     email: "",
     senha: "",
-    confirmarSenha: "",
+    confirmarSenha: "", // Apenas validação no front; não vai para a API
   });
 
   const [erro, setErro] = useState("");
@@ -27,11 +29,13 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Validação mínima dos campos obrigatórios
     if (!formData.nome || !formData.email || !formData.senha || !formData.confirmarSenha) {
       setErro("Preencha todos os campos.");
       return;
     }
 
+    // Senha e confirmação precisam bater antes de enviar
     if (formData.senha !== formData.confirmarSenha) {
       setErro("As senhas não coincidem.");
       return;

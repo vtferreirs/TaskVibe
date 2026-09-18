@@ -15,52 +15,55 @@ import Navbar from "../components/Navbar";
 import api from "../services/api";
 import "./Home.css";
 
+// Página inicial/landing. Funciona tanto para visitante não logado quanto
+// para usuário autenticado; quando logado, verifica se já existem quadros
+// para decidir entre o CTA de "criar primeiro quadro" ou "ir para os quadros".
 export default function Home() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const [user] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user"));
+    } catch {
+      return null;
+    }
+  });
   const [hasBoards, setHasBoards] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // Só há carregamento quando existe usuário (a checagem de quadros não é feita para visitantes)
+  const [loading, setLoading] = useState(() => Boolean(user));
+
+  const logado = Boolean(user);
 
   useEffect(() => {
-    const me = localStorage.getItem("user");
-    if (!me) {
-      navigate("/login");
-      return;
-    }
+    if (!user) return;
 
-    try {
-      const userData = JSON.parse(me);
-      setUser(userData);
-      checkUserBoards(userData._id || userData.id);
-    } catch (error) {
-      localStorage.removeItem("user");
-      navigate("/login");
-    }
-  }, [navigate]);
-
-  const checkUserBoards = async (usuarioId) => {
-    try {
-      const response = await api.get(`/quadro?usuarioId=${usuarioId}`);
-      const quadros = Array.isArray(response.data) ? response.data : [];
-      const meusQuadros = quadros.filter((q) => {
-        const donoId = q.id_usuario?._id || q.id_usuario || q.usuarioId || q.usuario;
-        return String(donoId) === String(usuarioId);
-      });
-      setHasBoards(meusQuadros.length > 0);
-    } catch (err) {
-      console.error("Erro ao verificar quadros:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const usuarioId = user._id || user.id;
+    api
+      .get(`/quadro?usuarioId=${usuarioId}`)
+      .then((response) => {
+        const quadros = Array.isArray(response.data) ? response.data : [];
+        const meusQuadros = quadros.filter((q) => {
+          const donoId = q.id_usuario?._id || q.id_usuario || q.usuarioId || q.usuario;
+          return String(donoId) === String(usuarioId);
+        });
+        setHasBoards(meusQuadros.length > 0);
+      })
+      .catch((err) => console.error("Erro ao verificar quadros:", err))
+      .finally(() => setLoading(false));
+  }, [user]);
 
   const handleCreateFirstBoard = () => {
-    navigate("/dashboard", { state: { openModal: true } });
+    if (logado) {
+      // Pede para abrir o modal de criação já no Dashboard (via estado da rota)
+      navigate("/dashboard", { state: { openModal: true } });
+    } else {
+      navigate("/register");
+    }
   };
 
   return (
     <div className="home-container">
       <div className="aurora-bg" />
+      {/* Decoração puramente visual; aria-hidden para acessibilidade */}
       <div className="home-deco" aria-hidden="true">
         <span className="deco-blob deco-blob-1" />
         <span className="deco-blob deco-blob-2" />
@@ -79,7 +82,16 @@ export default function Home() {
             <Sparkles size={16} /> Sua nova rotina começa aqui
           </div>
           <h1>
-            Bem-vindo(a), <span>{user?.nome?.split(" ")[0] || "Usuário"}</span>!
+            {logado ? (
+              <>
+                {/* Saudação personalizada com o primeiro nome do usuário */}
+                Bem-vindo(a), <span>{user?.nome?.split(" ")[0] || "Usuário"}</span>!
+              </>
+            ) : (
+              <>
+                Bem-vindo(a) ao <span>TaskVibe</span>!
+              </>
+            )}
           </h1>
           <p className="hero-text">
             O <strong>TaskVibe</strong> é o seu espaço para <strong>anotar o que você
@@ -92,6 +104,7 @@ export default function Home() {
         {/* Ilustração: mural de anotações + linha de escrita */}
         <section className="home-visual-row" aria-hidden="true">
           <div className="home-mural">
+            {/* Notinhas ilustrativas apenas decorativas */}
             <div className="sticky-note sticky-pink">
               <span className="sticky-pin" />
               <h4>Estudar React</h4>
@@ -131,19 +144,31 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Chamada principal: muda conforme login e existência de quadros */}
         <section className="action-card-container">
           {!loading && (
             <>
-              {!hasBoards ? (
-                <div className="first-step-card">
+              {!logado || !hasBoards ? (
+                <div className="first-step-card first-step-card--destaque">
+                  <span className="first-step-badge">
+                    <Sparkles size={14} /> {logado ? "Comece agora" : "É grátis"}
+                  </span>
                   <div className="first-step-icon">
-                    <ClipboardList size={24} />
+                    <ClipboardList size={26} />
                   </div>
-                  <h3>Pronto para anotar sua rotina?</h3>
-                  <p>Você ainda não possui nenhum quadro criado. Que tal dar o primeiro passo agora?</p>
+                  <h3>
+                    {logado
+                      ? "Pronto para anotar sua rotina?"
+                      : "Comece a organizar sua rotina!"}
+                  </h3>
+                  <p>
+                    {logado
+                      ? "Você ainda não possui nenhum quadro criado. Que tal dar o primeiro passo agora?"
+                      : "Você ainda não tem quadros. Crie sua conta gratuita e monte seu primeiro quadro em segundos."}
+                  </p>
 
                   <button onClick={handleCreateFirstBoard} className="btn-create-first">
-                    <Plus size={20} /> Criar meu primeiro quadro
+                    <Plus size={20} /> Criar meu primeiro quadro <ArrowRight size={18} />
                   </button>
                 </div>
               ) : (

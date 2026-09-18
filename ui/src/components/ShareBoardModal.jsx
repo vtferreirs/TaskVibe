@@ -4,19 +4,24 @@ import api from "../services/api";
 import "./CreateBoardModal.css";
 import "./ShareBoardModal.css";
 
+// Modal de compartilhamento de quadro (exclusivo do dono).
+// Permite convidar usuários por e-mail, ajustar a permissão de cada membro
+// (visualizar/editar) e remover membros — tudo via endpoints /quadro/:id/membros.
 export default function ShareBoardModal({ isOpen, quadroId, onClose, onUpdateQuadro }) {
-  const [quadro, setQuadro] = useState(null);
+  const [quadro, setQuadro] = useState(null); // Dados atuais do quadro (com membros)
   const [email, setEmail] = useState("");
   const [permissao, setPermissao] = useState("visualizar");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
 
+  // Recarrega o quadro toda vez que o modal abre, para listar membros atualizados
   useEffect(() => {
     if (!isOpen || !quadroId) return;
 
     const carregarQuadro = async () => {
       try {
         const res = await api.get(`/quadro?id=${quadroId}`);
+        // A API pode responder com array (lista) ou objeto único; normaliza aqui
         const dados = Array.isArray(res.data)
           ? res.data.find((q) => q._id === quadroId) || null
           : res.data;
@@ -34,6 +39,7 @@ export default function ShareBoardModal({ isOpen, quadroId, onClose, onUpdateQua
 
   const membros = quadro?.membros || [];
 
+  // Convidar membro: POST /quadro/:id/membros com e-mail + permissão
   const handleAdd = async (e) => {
     e.preventDefault();
     if (!email.trim()) {
@@ -48,6 +54,7 @@ export default function ShareBoardModal({ isOpen, quadroId, onClose, onUpdateQua
         email: email.trim(),
         permissao,
       });
+      // Atualiza o quadro local e avisa a página (para sincronizar listas)
       setQuadro(res.data);
       onUpdateQuadro?.(res.data);
       setEmail("");
@@ -58,6 +65,7 @@ export default function ShareBoardModal({ isOpen, quadroId, onClose, onUpdateQua
     }
   };
 
+  // Alterar permissão do membro: PUT /quadro/:id/membros/:membroId
   const handleChangePermissao = async (membroId, novaPermissao) => {
     try {
       const res = await api.put(`/quadro/${quadroId}/membros/${membroId}`, {
@@ -70,6 +78,7 @@ export default function ShareBoardModal({ isOpen, quadroId, onClose, onUpdateQua
     }
   };
 
+  // Remover membro: DELETE /quadro/:id/membros/:membroId
   const handleRemove = async (membroId) => {
     try {
       const res = await api.delete(`/quadro/${quadroId}/membros/${membroId}`);
@@ -96,6 +105,7 @@ export default function ShareBoardModal({ isOpen, quadroId, onClose, onUpdateQua
         <div className="modal-body">
           {erro && <div className="share-error">{erro}</div>}
 
+          {/* Formulário de convite: e-mail + permissão + botão adicionar */}
           <form onSubmit={handleAdd} className="share-form">
             <div className="form-group">
               <label htmlFor="member-email">E-mail cadastrado</label>
@@ -129,6 +139,7 @@ export default function ShareBoardModal({ isOpen, quadroId, onClose, onUpdateQua
             </div>
           </form>
 
+          {/* Lista de membros atuais com controle de permissão e remoção */}
           <div className="share-members-list">
             <h4 className="share-list-title">Membros ({membros.length})</h4>
 
@@ -139,6 +150,7 @@ export default function ShareBoardModal({ isOpen, quadroId, onClose, onUpdateQua
             ) : (
               membros.map((membro) => (
                 <div key={membro._id} className="share-member-row">
+                  {/* Avatar com a inicial do nome */}
                   <div className="share-member-avatar">
                     {membro.nome?.charAt(0).toUpperCase() || "?"}
                   </div>

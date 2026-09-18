@@ -5,22 +5,33 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TaskVibe — organize suas tarefas</title>
+    <!--
+      Script executado ANTES do React carregar para decidir o tema do app.
+      Lê o tema salvo no localStorage; se não houver, usa a preferência do
+      sistema (claro/escuro) e aplica via data-theme no <html>.
+      Assim o fundo correto já é aplicado no primeiro paint (sem "flash").
+    -->
     <script>
       (function () {
         try {
           var t = localStorage.getItem("taskvibe-theme");
+          // Sem preferência salva, usa a preferência de cor do sistema operacional
           if (t !== "dark" && t !== "light") {
             t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
           }
+          // data-theme é consumido pelos arquivos CSS (tema claro/escuro)
           document.documentElement.setAttribute("data-theme", t);
         } catch (e) {
+          // localStorage indisponível: cai no tema claro padrão
           document.documentElement.setAttribute("data-theme", "light");
         }
       })();
     </script>
   </head>
   <body>
+    <!-- O React monta a aplicação inteira dentro deste elemento #root -->
     <div id="root"></div>
+    <!-- main.jsx é o ponto de entrada do bundle do Vite -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

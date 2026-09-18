@@ -22,13 +22,13 @@
 .cp-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 900;
+  z-index: 10000;
   background: transparent;
 }
 
 .cp-popover {
   position: fixed;
-  z-index: 901;
+  z-index: 10001;
   width: 248px;
   background: var(--surface-glass-strong);
   backdrop-filter: var(--blur);

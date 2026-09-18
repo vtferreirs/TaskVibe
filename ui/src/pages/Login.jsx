@@ -6,9 +6,12 @@ import ThemeToggle from "../components/ThemeToggle";
 import AuthDecor from "../components/AuthDecor";
 import "./Auth.css";
 
+// Página de login. Chama POST /usuario/login e, em caso de sucesso,
+// salva usuário + token no localStorage (o interceptor do axios usa o token).
 export default function Login() {
   const navigate = useNavigate();
 
+  // Campos do formulário, controlados pelo estado
   const [formData, setFormData] = useState({
     email: "",
     senha: "",
@@ -17,6 +20,7 @@ export default function Login() {
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Atualiza o campo digitado e limpa qualquer erro exibido
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     if (erro) setErro("");
@@ -25,6 +29,7 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Validação mínima
     if (!formData.email || !formData.senha) {
       setErro("Preencha todos os campos.");
       return;
@@ -38,6 +43,7 @@ export default function Login() {
         senha: formData.senha,
       });
 
+      // A API devolve { ...usuario, token }
       const { token, ...usuario } = response.data;
 
       if (!token) {
@@ -45,10 +51,12 @@ export default function Login() {
         return;
       }
 
+      // Persiste a sessão localmente e vai para a área logada
       localStorage.setItem("user", JSON.stringify(usuario));
       localStorage.setItem("token", token);
       navigate("/home");
     } catch (err) {
+      // Mensagem vinda do back-end (ex.: "E-mail ou senha incorretos.")
       setErro(err.response?.data?.message || "Erro ao realizar login. Verifique sua conexão.");
     } finally {
       setLoading(false);
@@ -107,7 +115,7 @@ export default function Login() {
 
         <div className="auth-footer">
           <p>
-            Ainda não tem uma conta? <Link to="/">Criar conta</Link>
+            Ainda não tem uma conta? <Link to="/register">Criar conta</Link>
           </p>
         </div>
       </div>

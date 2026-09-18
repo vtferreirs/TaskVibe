@@ -92,6 +92,15 @@
   white-space: nowrap;
 }
 
+.navbar-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border-strong);
+  flex-shrink: 0;
+}
+
 .btn-logout {
   background: none;
   border: 1px solid var(--border);
@@ -111,6 +120,25 @@
   background: var(--error-bg);
   color: var(--danger);
   border-color: var(--error-border);
+}
+
+.btn-nav-signup {
+  background: var(--gradient-btn);
+  color: #ffffff;
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 9px 18px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-nav-signup:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-pink);
 }
 
 @media (max-width: 820px) {

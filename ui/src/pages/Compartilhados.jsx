@@ -6,6 +6,9 @@ import Navbar from "../components/Navbar";
 import "./Dashboard.css";
 import "./Compartilhados.css";
 
+// Página "Quadros Compartilhados": lista os boards em que o usuário é
+// apenas membro convidado (excluindo aqueles em que ele é dono).
+// Mostra o dono e a permissão (visualizar/editar) de cada quadro.
 export default function Compartilhados() {
   const navigate = useNavigate();
   const [user] = useState(() => {
@@ -19,12 +22,14 @@ export default function Compartilhados() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Sem usuário na sessão, volta para o login
     if (!user) {
       navigate("/login");
       return;
     }
 
     const usuarioId = user._id || user.id;
+    // "ativo" evita setar estado após o componente desmontar (limpeza do efeito)
     let ativo = true;
 
     api
@@ -33,6 +38,7 @@ export default function Compartilhados() {
         if (!ativo) return;
         const dados = Array.isArray(response.data)
           ? response.data.filter((q) => {
+              // Mantém apenas quadros cujo dono NÃO é o usuário atual
               const donoId = String(q.id_usuario?._id || q.id_usuario || "");
               return donoId !== String(usuarioId);
             })
@@ -48,6 +54,7 @@ export default function Compartilhados() {
         if (ativo) setLoading(false);
       });
 
+    // Cleanup: marca ativo = false quando o efeito é refeito/desmontado
     return () => {
       ativo = false;
     };
@@ -79,6 +86,7 @@ export default function Compartilhados() {
         ) : (
           <div className="boards-grid compartilhados-grid">
             {compartilhados.map((quadro) => {
+              // Dados derivados por card: dono (populado) e permissão do usuário atual
               const dono = quadro.id_usuario?._id ? quadro.id_usuario : null;
               const membroAtual = (quadro.membros || []).find(
                 (m) => String(m.id_usuario) === String(user?._id || user?.id)
@@ -95,6 +103,7 @@ export default function Compartilhados() {
                 >
                   <div className="board-card-header">
                     <h3>{titulo}</h3>
+                    {/* Badge indica o nível de acesso do usuário neste quadro */}
                     <span className={`shared-permissao-badge ${permissao}`}>
                       {permissao === "editar" ? <Edit3 size={13} /> : <Eye size={13} />}
                       {permissao === "editar" ? "Pode editar" : "Somente leitura"}

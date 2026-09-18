@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Plus, Layout, FolderKanban, Sparkles, Clock, Trash2 } from "lucide-react";
 import api from "../services/api";
@@ -7,61 +7,63 @@ import CreateBoardModal from "../components/CreateBoardModal";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import "./Dashboard.css";
 
+// Página principal "Meus Quadros": lista os quadros em que o usuário é DONO
+// (os compartilhados ficam na página Compartilhados), permite criar novos
+// quadros e excluir os próprios. Only o dono vê o botão de excluir.
 export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [user, setUser] = useState(null);
+  const [user] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user"));
+    } catch {
+      return null;
+    }
+  });
   const [quadros, setQuadros] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Home pode navegar com state.openModal -> abre o modal de criação de início
+  const [isModalOpen, setIsModalOpen] = useState(() => Boolean(location.state?.openModal));
 
   // Estados para o Modal de Exclusão Customizado
   const [boardToDelete, setBoardToDelete] = useState(null);
 
-  const fetchQuadros = useCallback(async (usuarioId) => {
-    try {
-      const response = await api.get(`/quadro?usuarioId=${usuarioId}`);
-      if (Array.isArray(response.data)) {
-        const meusQuadros = response.data.filter((q) => {
-          const donoId = q.id_usuario?._id || q.id_usuario || q.usuarioId || q.usuario;
-          return String(donoId) === String(usuarioId);
-        });
-        setQuadros(meusQuadros);
-      } else {
-        setQuadros([]);
-      }
-    } catch (err) {
-      console.error("Erro ao carregar quadros:", err);
-      setQuadros([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    const me = localStorage.getItem("user");
-    if (!me) {
+    // Bloqueia acesso à página sem sessão válida
+    if (!user) {
+      localStorage.removeItem("user");
       navigate("/login");
       return;
     }
 
-    try {
-      const userData = JSON.parse(me);
-      setUser(userData);
-      const userId = userData._id || userData.id;
-      fetchQuadros(userId);
-    } catch (error) {
-      localStorage.removeItem("user");
-      navigate("/login");
-    }
-  }, [navigate, fetchQuadros]);
+    const usuarioId = user._id || user.id;
+    api
+      .get(`/quadro?usuarioId=${usuarioId}`)
+      .then((response) => {
+        if (Array.isArray(response.data)) {
+          // Filtra apenas os quadros do próprio usuário (dono)
+          const meusQuadros = response.data.filter((q) => {
+            const donoId = q.id_usuario?._id || q.id_usuario || q.usuarioId || q.usuario;
+            return String(donoId) === String(usuarioId);
+          });
+          setQuadros(meusQuadros);
+        } else {
+          setQuadros([]);
+        }
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar quadros:", err);
+        setQuadros([]);
+      })
+      .finally(() => setLoading(false));
+  }, [navigate, user]);
 
+  // Limpa o estado da URL assim que o modal abre (para não reabrir no refresh)
   useEffect(() => {
-    if (location.state?.openModal && !loading) {
-      setIsModalOpen(true);
+    if (location.state?.openModal) {
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location, loading, navigate]);
+  }, [location, navigate]);
 
   const handleCreateBoard = async ({ titulo, cor, importancia }) => {
     try {
@@ -71,6 +73,7 @@ export default function Dashboard() {
         importancia,
       });
 
+      // Adiciona o novo quadro à lista e fecha o modal
       setQuadros((prev) => [...prev, response.data]);
       setIsModalOpen(false);
     } catch (err) {
@@ -81,7 +84,7 @@ export default function Dashboard() {
 
   // Abre o modal estilizado salvando o quadro selecionado
   const openDeleteModal = (e, quadro) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Não dispara o clique de navegação do card
     setBoardToDelete({
       id: quadro._id,
       titulo: quadro.titulo_quadro || quadro.titulo,
@@ -94,6 +97,7 @@ export default function Dashboard() {
 
     try {
       await api.delete(`/quadro/${boardToDelete.id}`);
+      // Remove localmente após o sucesso da API
       setQuadros((prev) => prev.filter((q) => q._id !== boardToDelete.id));
       setBoardToDelete(null);
     } catch (err) {
@@ -112,6 +116,7 @@ export default function Dashboard() {
           <p>Gerencie seus projetos e acompanhe seu fluxo de trabalho.</p>
         </div>
 
+        {/* Cartões de estatística rápida */}
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-icon purple">
@@ -159,6 +164,7 @@ export default function Dashboard() {
             {quadros.map((quadro) => {
               const titulo = quadro.titulo_quadro || quadro.titulo;
               const usuarioId = String(user?._id || user?.id || "");
+              // Detalhe de segurança visual: só dono tem botão de excluir
               const ehDono =
                 String(quadro.id_usuario?._id || quadro.id_usuario || "") === usuarioId;
               return (
@@ -196,6 +202,7 @@ export default function Dashboard() {
         )}
       </main>
 
+      {/* Modais: criação e exclusão (com confirmação) */}
       <CreateBoardModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
