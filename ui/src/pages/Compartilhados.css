@@ -1,7 +1,7 @@
 .compartilhados-grid .board-card {
   height: auto;
-  min-height: 190px;
-  gap: 16px;
+  min-height: 200px;
+  gap: var(--space-3);
 }
 
 .compartilhados-grid .board-card-header {
@@ -12,7 +12,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 24px;
   font-size: 0.72rem;
   font-weight: 700;
@@ -25,14 +25,14 @@
 }
 
 .shared-permissao-badge.visualizar {
-  background-color: rgba(250, 204, 21, 0.15);
+  background-color: rgba(250, 204, 21, 0.16);
   color: #a16207;
 }
 
 .compartilhado-dono {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: 0.85rem;
   color: #6b7280;
 }

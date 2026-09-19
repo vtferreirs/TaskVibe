@@ -19,6 +19,7 @@ import api from "../services/api";
 import Navbar from "../components/Navbar";
 import { normalizarNivel } from "../components/cardStatus";
 import "./Settings.css";
+import "../components/CreateBoardModal.css";
 
 const formatarData = (data) => {
   if (!data) return "—";

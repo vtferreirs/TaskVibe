@@ -1,22 +1,22 @@
 .gradient-builder {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-3);
   width: 100%;
 }
 
 .gradient-builder-preview {
-  height: 44px;
+  height: 46px;
   border-radius: 12px;
   border: 1.5px solid var(--border);
-  box-shadow: var(--shadow-sm);
-  transition: background 0.2s ease;
+  box-shadow: var(--elev-1);
+  transition: background var(--t-fast);
 }
 
 .gradient-builder-inputs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: var(--space-3);
   align-items: center;
 }
 
@@ -36,8 +36,8 @@
 }
 
 .gradient-builder-field input[type="color"] {
-  width: 44px;
-  height: 34px;
+  width: 48px;
+  height: 36px;
   padding: 0;
   border: 1.5px solid var(--border-strong);
   border-radius: 8px;

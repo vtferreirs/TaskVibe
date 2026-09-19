@@ -2,14 +2,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all var(--t-fast);
   padding: 0;
 }
 
@@ -35,11 +35,11 @@
   -webkit-backdrop-filter: var(--blur);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 14px;
-  box-shadow: var(--shadow-lg);
+  padding: var(--space-4);
+  box-shadow: var(--elev-3);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
   animation: cpPop 0.15s ease-out;
 }
 
@@ -57,7 +57,7 @@
 .cp-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--text-secondary);
@@ -72,16 +72,16 @@
 .cp-swatches {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .cp-swatch {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 9px;
   border: 2px solid var(--border);
   cursor: pointer;
-  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  transition: transform var(--t-fast), border-color var(--t-fast), box-shadow var(--t-fast);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -95,30 +95,30 @@
 }
 
 .cp-swatch--active {
-  border-color: var(--accent-2);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: var(--accent);
+  box-shadow: var(--ring);
   z-index: 1;
 }
 
 .cp-custom {
   border-top: 1px solid var(--border);
-  padding-top: 12px;
+  padding-top: var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .cp-custom--active {
   background: var(--accent-soft);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 12px;
+  padding: var(--space-3);
 }
 
 .cp-custom-toggle {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   background: none;
   border: none;
   cursor: pointer;
@@ -134,8 +134,8 @@
 }
 
 .cp-custom-chip {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 9px;
   border: 2px solid var(--border);
   overflow: hidden;
