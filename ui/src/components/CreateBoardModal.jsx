@@ -9,7 +9,8 @@ import "./CreateBoardModal.css";
 export default function CreateBoardModal({ isOpen, onClose, onCreate }) {
   // Estado do formulário, independente do resto da aplicação
   const [titulo, setTitulo] = useState("");
-  const [cor, setCor] = useState("#FFFFFF");
+  // "" = Padrão (sem cor, mantém a aurora/tema); "#FFFFFF" = Branco; demais = cor/gradiente
+  const [cor, setCor] = useState("");
   const [importancia, setImportancia] = useState("Baixa");
 
   // Fechado = não renderiza nada
@@ -32,7 +33,7 @@ export default function CreateBoardModal({ isOpen, onClose, onCreate }) {
 
     // Limpa o formulário para o próximo uso
     setTitulo("");
-    setCor("#FFFFFF");
+    setCor("");
     setImportancia("Baixa");
   };
 
@@ -64,8 +65,16 @@ export default function CreateBoardModal({ isOpen, onClose, onCreate }) {
 
           <div className="form-group">
             <label>Cor de Fundo</label>
-            {/* Swatches de cor vindos da paleta central (colorPalette.js) */}
+            {/* Opção "Padrão" (sem cor -> tema/aurora) + swatches da paleta central (colorPalette.js) */}
             <div className="color-options">
+              <button
+                type="button"
+                className={`color-swatch color-swatch--default ${cor === "" ? "active" : ""}`}
+                title="Padrão (tema atual)"
+                aria-label="Cor padrão (sem cor)"
+                onClick={() => handlePick("")}
+              />
+
               {COLOR_PALETTE.map((c) => (
                 <button
                   key={c.id}
@@ -96,7 +105,7 @@ export default function CreateBoardModal({ isOpen, onClose, onCreate }) {
           {/* Pré-visualização */}
           <div className="preview-container">
             <span className="preview-title">Pré-visualização</span>
-            <div className="preview-card" style={{ background: cor }}>
+            <div className="preview-card" style={{ background: cor || "#f6f3fb" }}>
               {/* Faixa horizontal superior colorida conforme a importância */}
               <div className={`importance-bar ${importancia}`} />
 

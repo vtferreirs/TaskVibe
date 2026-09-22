@@ -178,6 +178,24 @@
   pointer-events: none;
 }
 
+/* Swatch "Padrão" (sem cor - tema/aurora): fundo listrado neutro + linha diagonal */
+.color-swatch--default {
+  background: repeating-linear-gradient(45deg, #e9e3f5 0 6px, #f8f5ff 6px 12px);
+}
+
+.color-swatch--default::after {
+  content: "";
+  position: absolute;
+  width: 132%;
+  height: 2px;
+  background: var(--text-muted);
+  transform: rotate(-45deg);
+}
+
+[data-theme="dark"] .color-swatch--default {
+  background: repeating-linear-gradient(45deg, #2a1f40 0 6px, #1b1229 6px 12px);
+}
+
 /* Pré-visualização */
 .preview-container {
   display: flex;

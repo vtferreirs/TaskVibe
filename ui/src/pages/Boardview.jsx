@@ -29,6 +29,11 @@ const DEFAULT_COLUNAS = [
   { titulo: "Concluído", key: "Concluído" },
 ];
 
+// Criação das colunas padrão deduplicada: guarda a Promise em andamento por quadro,
+// para que chamadas concorrentes (o StrictMode reexecuta efeitos em desenvolvimento)
+// criem as três colunas apenas uma vez
+const colunasPadraoEmCriacao = new Map();
+
 // Mapa entre a faixa de prazo e a classe CSS da tarja de deadline
 const DEADLINE_CLASSES = {
   atrasado: "deadlineAtrasado",
@@ -78,18 +83,47 @@ export default function BoardView() {
   const columnStatus = (coluna) => coluna.key || String(coluna._id);
 
   // Carrega colunas do quadro; se o usuário pode editar e não há colunas,
-  // cria automaticamente as três colunas padrão (fluxo de primeiro acesso)
+  // cria automaticamente as três colunas padrão (fluxo de primeiro acesso).
+  // A criação é deduplicada por quadro: chamadas concorrentes (double-mount do
+  // StrictMode) compartilham a mesma Promise e nunca chegam a duplicar colunas.
   const fetchColunas = useCallback(async (quadroId, podeCriar) => {
     const res = await api.get(`/coluna?id_quadro=${quadroId}`);
     let colunasCarregadas = Array.isArray(res.data) ? res.data : [];
 
     if (podeCriar && colunasCarregadas.length === 0) {
-      const criadas = await Promise.all(
-        DEFAULT_COLUNAS.map((d, i) =>
-          api.post("/coluna", { ...d, ordem: i, id_quadro: quadroId })
-        )
-      );
-      colunasCarregadas = criadas.map((r) => r.data);
+      // Se outra chamada já está criando os padrões para este quadro, reutiliza
+      // a mesma Promise em vez de disparar novos POSTs
+      let promessa = colunasPadraoEmCriacao.get(quadroId);
+      if (!promessa) {
+        promessa = Promise.all(
+          DEFAULT_COLUNAS.map((d, i) =>
+            api.post("/coluna", { ...d, ordem: i, id_quadro: quadroId })
+          )
+        ).then((criadas) => criadas.map((r) => r.data));
+        colunasPadraoEmCriacao.set(quadroId, promessa);
+        // Remove a entrada ao concluir (ou falhar) para permitir novas tentativas
+        promessa
+          .then(() => colunasPadraoEmCriacao.delete(quadroId))
+          .catch(() => colunasPadraoEmCriacao.delete(quadroId));
+      }
+
+      let criadas;
+      try {
+        criadas = await promessa;
+      } catch (err) {
+        console.error("Erro ao criar colunas padrão:", err);
+        return;
+      }
+
+      // Refaz a busca para refletir TODAS as colunas existentes (os chamadores
+      // concorrentes convergem para o mesmo conjunto); em falha, mantém as criadas
+      try {
+        const resFinal = await api.get(`/coluna?id_quadro=${quadroId}`);
+        colunasCarregadas = Array.isArray(resFinal.data) ? resFinal.data : criadas;
+      } catch (err) {
+        console.error("Erro ao recarregar colunas:", err);
+        colunasCarregadas = criadas;
+      }
     }
 
     setColunas(colunasCarregadas);
@@ -410,6 +444,23 @@ export default function BoardView() {
   // Permissões derivadas usadas por toda a renderização
   const podeEditar = permissao === "dono" || permissao === "editar";
   const ehDono = permissao === "dono";
+  // Fundo da tela do quadro: preenche a página inteira com a cor escolhida na criação
+  // (exceto navbar, colunas e tarefas, que permanecem opacas). Três estados possíveis:
+  //   - sem cor ("Padrão" / "" / null)  -> aurora do tema;
+  //   - "#FFFFFF" (Branco escolhido)    -> parede branca;
+  //   - qualquer outra cor/gradiente    -> parede colorida.
+  const corQuadro = (quadro?.cor || "").trim();
+  const corFundoQuadro = !corQuadro
+    ? undefined
+    : corQuadro.toUpperCase() === "#FFFFFF"
+      ? "#FFFFFF"
+      : corQuadro;
+  // Borda do header: usa a cor do quadro apenas quando há cor real; para Padrão e
+  // Branco mantém o acento padrão, para a borda não "sumir" em fundo branco.
+  const corBordaQuadro =
+    corQuadro && corQuadro.toUpperCase() !== "#FFFFFF"
+      ? colorFallback(corQuadro, "#7c3aed")
+      : "#7c3aed";
   const nivelAlertas = normalizarNivel(user?.nivel_alertas ?? user?.alertas_visuais);
   const cardSelecionado =
     cards.find((c) => c._id === cardSelecionadoId) || null;
@@ -439,11 +490,13 @@ export default function BoardView() {
   }
 
   return (
-    <div className={styles.container}>
-      <div className="aurora-bg" />
+    <div className={styles.container} style={{ background: corFundoQuadro }}>
+      {/* Aurora fica oculta quando o quadro tem cor personalizada: o fundo passa
+          a ser a cor escolhida, preenchendo a tela inteira */}
+      {!corFundoQuadro && <div className="aurora-bg" />}
       <Navbar user={user} />
 
-      <header className={styles.header} style={{ borderBottomColor: colorFallback(quadro?.cor, "#7c3aed") }}>
+      <header className={styles.header} style={{ borderBottomColor: corBordaQuadro }}>
         <button className={styles.btnBack} onClick={() => navigate("/dashboard")}>
           <ArrowLeft size={18} /> Voltar aos Quadros
         </button>
